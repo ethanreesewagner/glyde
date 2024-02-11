@@ -1,34 +1,3 @@
-import importlib
-
-# List of required libraries
-required_libraries = [
-    "streamlit",
-    "pandas",
-    "passlib",
-    "sqlite3",
-    "datetime",
-]
-
-def install_library(library_name):
-    try:
-        importlib.import_module(library_name)
-        print(f"{library_name} is already installed.")
-    except ImportError:
-        print(f"{library_name} is not installed. Installing...")
-        try:
-            import subprocess
-            subprocess.check_call(["pip", "install", library_name])
-            print(f"{library_name} has been successfully installed.")
-        except Exception as e:
-            print(f"Error installing {library_name}: {e}")
-
-def main():
-    for library in required_libraries:
-        install_library(library)
-
-if __name__ == "__main__":
-    main()
-
 # Import libraries
 import streamlit as st
 import pandas as pd
@@ -305,3 +274,7 @@ def main():
                 st.success("Post created successfully!")
             else:
                 st.warning("You need to be logged in to create a post.")
+
+# Run the app
+if __name__ == "__main__":
+    main()
