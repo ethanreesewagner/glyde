@@ -147,10 +147,6 @@ def downvote_post(post_id, user_id):
         ''', (downvotes, post_id))
         conn.commit()
 
-# Part 2: Implement Bot/Spam/DDoS Protection (Captcha Check Removed)
-
-# Part 2: Implement Bot/Spam/DDoS Protection (Captcha Check Removed)
-
 # Part 3: Pagination
 # Main function
 def main():
@@ -176,6 +172,9 @@ def main():
     if page == "Home":
         st.header("Welcome to the Home Page")
 
+        # Search bar
+        search_term = st.text_input("Search for posts:")
+
         # Pagination
         posts_per_page = 5  # You can adjust the number of posts per page
         page_number = st.session_state.page_number  # Use the session_state key
@@ -183,14 +182,15 @@ def main():
         # Calculate the offset based on the page number
         offset = (page_number - 1) * posts_per_page
 
-        # Display posts based on visibility and search term with pagination
+        # Display posts based on visibility, search term, and with pagination
         query = f'''
             SELECT * FROM posts 
             WHERE visibility = 'Public' 
+            AND (LOWER(title) LIKE LOWER(?) OR LOWER(content) LIKE LOWER(?))
             ORDER BY timestamp DESC
             LIMIT {posts_per_page} OFFSET {offset}
         '''
-        cursor.execute(query)
+        cursor.execute(query, (f"%{search_term}%", f"%{search_term}%"))
         posts_data = cursor.fetchall()
 
         # Display posts and implement next and previous page logic
@@ -233,9 +233,9 @@ def main():
                 st.markdown("---")
 
         # Next and previous page buttons
-        if st.button("Next Page (Please go to login page and back to home page to see this.)", key="next_page"):
+        if st.button("Next Page", key="next_page"):
             st.session_state.page_number += 1
-        if st.button("Previous Page (Please go to login page and back to home page to see this.)", key="prev_page"):
+        if st.button("Previous Page", key="prev_page"):
             st.session_state.page_number = max(1, page_number - 1)
 
     # ...
