@@ -233,9 +233,9 @@ def main():
                 st.markdown("---")
 
         # Next and previous page buttons
-        if st.button("Next Page", key="next_page"):
+        if st.button("Next Page (Please go to login page and back to home page to see this.)", key="next_page"):
             st.session_state.page_number += 1
-        if st.button("Previous Page", key="prev_page"):
+        if st.button("Previous Page (Please go to login page and back to home page to see this.)", key="prev_page"):
             st.session_state.page_number = max(1, page_number - 1)
 
     # ...
