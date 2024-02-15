@@ -57,6 +57,19 @@ registered_users = []
 # Time delay for login attempts (in seconds)
 LOGIN_DELAY = 5
 
+# Part 1: Maintain User Session on Refresh
+# Set user to None only if it is not present in the session state
+if 'user' not in st.session_state:
+    st.session_state.user = None
+    st.session_state.upvoted_posts = {}
+    st.session_state.downvoted_posts = {}
+    st.session_state.login_attempt_time = 0
+    st.session_state.page_number = 1  # Initialize the page_number with a key
+
+
+def get_user():
+    return st.session_state.user
+
 def is_duplicate_user(username, email):
     cursor.execute('''
         SELECT * FROM users WHERE username = ? OR email = ?
@@ -134,16 +147,19 @@ def downvote_post(post_id, user_id):
         ''', (downvotes, post_id))
         conn.commit()
 
+# Part 2: Implement Bot/Spam/DDoS Protection (Captcha Check Removed)
+
+# Part 2: Implement Bot/Spam/DDoS Protection (Captcha Check Removed)
+
+# Part 3: Pagination
 # Main function
 def main():
+    # Define the 'page' variable at the beginning of the function
+    pages = ["Home", "Login", "Sign Up", "Create Post"]
+    page = st.sidebar.radio("Go to", pages)
+
     st.title("Glyde Social Media App")
     st.sidebar.header("Navigation")
-
-    if 'user' not in st.session_state:
-        st.session_state.user = None
-        st.session_state.upvoted_posts = {}
-        st.session_state.downvoted_posts = {}
-        st.session_state.login_attempt_time = 0
 
     if st.session_state.user is not None:
         st.sidebar.write(f"Logged in as {st.session_state.user.username}")
@@ -152,65 +168,80 @@ def main():
     else:
         st.sidebar.write("Not logged in")
 
-    pages = ["Home", "Login", "Sign Up", "Create Post"]
-    page = st.sidebar.radio("Go to", pages)
+    # Use the session state directly
+    user = st.session_state.user
+
+    # ...
 
     if page == "Home":
         st.header("Welcome to the Home Page")
 
-        # Search bar
-        search_term = st.text_input("Search for posts:")
+        # Pagination
+        posts_per_page = 5  # You can adjust the number of posts per page
+        page_number = st.session_state.page_number  # Use the session_state key
 
-        # Display posts based on visibility and search term
-        query = '''
+        # Calculate the offset based on the page number
+        offset = (page_number - 1) * posts_per_page
+
+        # Display posts based on visibility and search term with pagination
+        query = f'''
             SELECT * FROM posts 
             WHERE visibility = 'Public' 
             ORDER BY timestamp DESC
+            LIMIT {posts_per_page} OFFSET {offset}
         '''
         cursor.execute(query)
         posts_data = cursor.fetchall()
 
+        # Display posts and implement next and previous page logic
         for post in posts_data:
-            # Apply search filter
-            if search_term.lower() in post[2].lower() or search_term.lower() in post[3].lower():
-                # Styling individual components
-                with st.container():
-                    st.markdown(f"<h3 style='color:purple;'>{post[2]}</h3> by {post[1]} on {post[8]}", unsafe_allow_html=True)
-                    st.markdown(f"<p style='color:purple;'>{post[3]}</p>", unsafe_allow_html=True)
-                    if post[4]:
-                        st.video(post[4])
-                    st.markdown(f"<p style='color:purple;'>Upvotes: {post[5]} | Downvotes: {post[6]}</p>", unsafe_allow_html=True)
+            with st.container():
+                st.markdown(f"<h3 style='color:purple;'>{post[2]}</h3> by {post[1]} on {post[8]}", unsafe_allow_html=True)
+                st.markdown(f"<p style='color:purple;'>{post[3]}</p>", unsafe_allow_html=True)
+                if post[4]:
+                    st.video(post[4])
+                st.markdown(f"<p style='color:purple;'>Upvotes: {post[5]} | Downvotes: {post[6]}</p>", unsafe_allow_html=True)
 
-                    # Upvote and Downvote buttons
-                    upvote_button = st.button(f"Upvote ({post[5]})", key=f"upvote_{post[0]}")
-                    downvote_button = st.button(f"Downvote ({post[6]})", key=f"downvote_{post[0]}")
+                # Upvote and Downvote buttons
+                upvote_button = st.button(f"Upvote ({post[5]})", key=f"upvote_{post[0]}")
+                downvote_button = st.button(f"Downvote ({post[6]})", key=f"downvote_{post[0]}")
 
-                    if st.session_state.user is not None:
-                        user_id = st.session_state.user.username
+                if user is not None:
+                    user_id = user.username
 
-                        if upvote_button:
-                            upvote_post(post[0], user_id)
-                        if downvote_button:
-                            downvote_post(post[0], user_id)
+                    if upvote_button:
+                        upvote_post(post[0], user_id)
+                    if downvote_button:
+                        downvote_post(post[0], user_id)
 
-                    # Display comments
-                    st.subheader("Comments")
-                    comments = eval(post[7]) if post[7] else []
-                    for comment in comments:
-                        # Split comment into username and comment text
-                        comment_parts = comment.split(": ", 1)
-                        if len(comment_parts) == 2:
-                            username, comment_text = comment_parts
-                            st.write(f"<p style='color:purple;'>{username}: {comment_text}</p>", unsafe_allow_html=True)
-                        else:
-                            st.write(f"<p style='color:purple;'>{comment}</p>", unsafe_allow_html=True)
+                # Display comments
+                st.subheader("Comments")
+                comments = eval(post[7]) if post[7] else []
+                for comment in comments:
+                    comment_parts = comment.split(": ", 1)
+                    if len(comment_parts) == 2:
+                        username, comment_text = comment_parts
+                        st.write(f"<p style='color:purple;'>{username}: {comment_text}</p>", unsafe_allow_html=True)
+                    else:
+                        st.write(f"<p style='color:purple;'>{comment}</p>", unsafe_allow_html=True)
 
-                    # Add a comment
-                    new_comment = st.text_area(f"Add a comment to {post[2]}")
-                    if st.button(f"Post Comment to {post[0]}", key=f"comment_{post[0]}"):
-                        add_comment(post[0], f"{st.session_state.user.username}: {new_comment}")
+                # Add a comment
+                new_comment = st.text_area(f"Add a comment to {post[2]}")
+                if st.button(f"Post Comment to {post[0]}", key=f"comment_{post[0]}"):
+                    add_comment(post[0], f"{user.username}: {new_comment}")
 
-                    st.markdown("---")
+                st.markdown("---")
+
+        # Next and previous page buttons
+        if st.button("Next Page", key="next_page"):
+            st.session_state.page_number += 1
+        if st.button("Previous Page", key="prev_page"):
+            st.session_state.page_number = max(1, page_number - 1)
+
+    # ...
+
+# Rest of the code remains the same
+
 
     elif page == "Login":
         st.header("Login")
